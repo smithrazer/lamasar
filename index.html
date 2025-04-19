@@ -8,24 +8,20 @@
     body { font-family: Arial, sans-serif; background: #f4f4f4; color: #333; margin: 0; padding: 20px; }
     .container { max-width: 800px; margin: 0 auto; }
     h1 { text-align: center; color: #4a90e2; }
-    .controls { display: flex; flex-wrap: wrap; gap: 10px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
     .controls > div { flex: 1 1 200px; }
     .syllables, .markers { background: #fff; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
     label { display: block; margin-bottom: 5px; cursor: pointer; }
-    button { background: #4caf50; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; }
+    button { background: #4caf50; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 20px; }
     button:hover { background: #43a047; }
     #output { background: #fff; padding: 10px; border-radius: 8px; min-height: 100px; margin-top: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); white-space: pre-wrap; }
-    input[type=file] { margin-bottom: 10px; }
-    img { max-width: 300px; display: block; margin-bottom: 10px; }
-    canvas { background: #fff; border: 1px solid #ccc; margin-top: 10px; width: 100%; height: auto; }
+    #canvas { background: #fff; border: 1px solid #ccc; margin-top: 10px; display: block; }
+    .freq-control { margin-top: 10px; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Lum’Asar Web GUI v2.3</h1>
-
-    <input type="file" id="imgInput" accept="image/*">
-    <img id="preview" src="" alt="Preview">
 
     <div class="controls">
       <div class="syllables">
@@ -38,74 +34,191 @@
       </div>
     </div>
 
-    <div style="margin-top:10px;">
+    <div class="freq-control">
       <label>Сдвиг частоты: <span id="shiftVal">0</span> Гц</label>
       <input type="range" id="shift" min="-20" max="20" value="0">
     </div>
 
     <button id="generate">Сгенерировать мантру</button>
-
     <div id="output"></div>
-    <!-- Canvas placeholder (drawing disabled) -->
-    <canvas id="canvas"></canvas>
+    <canvas id="canvas" width="300" height="300"></canvas>
   </div>
 
   <script>
     const LUM_ASAR = {
-      Lu:{freq:432, color:'#FFD700', symbol:'🌀'}, Sa:{freq:528, color:'#FF69B4', symbol:'─'},
-      Ra:{freq:639, color:'#FF4500', symbol:'🔺'}, Va:{freq:741, color:'#32CD32', symbol:'⚪️'},
-      Mi:{freq:852, color:'#1E90FF', symbol:'🔵'}, Ke:{freq:963, color:'#000000', symbol:'⚫️'},
-      Nu:{freq:684, color:'#8B4513', symbol:'🟫'}, Mu:{freq:720, color:'#008080', symbol:'🟢'},
-      Fi:{freq:396, color:'#FF4500', symbol:'🔥'}, Wa:{freq:417, color:'#1E90FF', symbol:'🌊'},
-      Ai:{freq:471, color:'#A9A9A9', symbol:'💨'}, Ea:{freq:333, color:'#8B4513', symbol:'🌍'},
-      Is:{freq:396, color:'#8B4513', symbol:'📥'}, Za:{freq:417, color:'#FF69B4', symbol:'🌀'},
-      Zi:{freq:528, color:'#FF4500', symbol:'🌊'}, Pe:{freq:639, color:'#FFD700', symbol:'⚪️'},
-      La:{freq:741, color:'#32CD32', symbol:'🔺'}, Le:{freq:852, color:'#1E90FF', symbol:'🔵'},
-      Us:{freq:963, color:'#00008B', symbol:'─'}, Ch:{freq:1080, color:'#4B0082', symbol:'⚪️🔺'},
-      Ro:{freq:1152, color:'#800080', symbol:'🟫'}
+      Lu:{freq:432, figure:'spiral', color:'#FFD700', symbol:'🌀'},
+      Sa:{freq:528, figure:'line', color:'#FF69B4', symbol:'─'},
+      Ra:{freq:639, figure:'triangle', color:'#FF4500', symbol:'🔺'},
+      Va:{freq:741, figure:'circle', color:'#32CD32', symbol:'⚪️'},
+      Mi:{freq:852, figure:'circle_filled', color:'#1E90FF', symbol:'🔵'},
+      Ke:{freq:963, figure:'dot', color:'#000000', symbol:'⚫️'},
+      Nu:{freq:684, figure:'square', color:'#8B4513', symbol:'🟫'},
+      Mu:{freq:720, figure:'ellipse', color:'#008080', symbol:'🟢'},
+      Fi:{freq:396, figure:'flame', color:'#FF4500', symbol:'🔥'},
+      Wa:{freq:417, figure:'wave_water', color:'#1E90FF', symbol:'🌊'},
+      Ai:{freq:471, figure:'wind', color:'#A9A9A9', symbol:'💨'},
+      Ea:{freq:333, figure:'grid', color:'#8B4513', symbol:'🌍'},
+      Is:{freq:396, figure:'drop', color:'#8B4513', symbol:'📥'},
+      Za:{freq:417, figure:'spiral', color:'#FF69B4', symbol:'🌀'},
+      Zi:{freq:528, figure:'wave', color:'#FF4500', symbol:'🌊'},
+      Pe:{freq:639, figure:'circle', color:'#FFD700', symbol:'⚪️'},
+      La:{freq:741, figure:'triangle', color:'#32CD32', symbol:'🔺'},
+      Le:{freq:852, figure:'circle_filled', color:'#1E90FF', symbol:'🔵'},
+      Us:{freq:963, figure:'line', color:'#00008B', symbol:'─'},
+      Ch:{freq:1080, figure:'harmony', color:'#4B0082', symbol:'⚪️🔺'},
+      Ro:{freq:1152, figure:'square', color:'#800080', symbol:'🟫'}
     };
-    const GR_MARKERS = { ka:{desc:'исцеляющая', symbol:'🔆'}, ta:{desc:'активирующая', symbol:'⚡'}, na:{desc:'медитативная', symbol:'🧘'} };
+    const GR_MARKERS = {
+      ka:{desc:'исцеляющая', symbol:'🔆'},
+      ta:{desc:'активирующая', symbol:'⚡'},
+      na:{desc:'медитативная', symbol:'🧘'}
+    };
 
-    let selected=[], marker='';
-    const sylDiv=document.getElementById('syllables'), markDiv=document.getElementById('markers');
-    const shift=document.getElementById('shift'), shiftVal=document.getElementById('shiftVal');
-    const out=document.getElementById('output');
+    let selected = [], marker = '';
+    const sylDiv = document.getElementById('syllables');
+    const markDiv = document.getElementById('markers');
+    const shift = document.getElementById('shift');
+    const shiftVal = document.getElementById('shiftVal');
+    const out = document.getElementById('output');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
 
-    Object.keys(LUM_ASAR).forEach(s=>{
-      const cb=document.createElement('input'), lbl=document.createElement('label');
-      cb.type='checkbox'; cb.value=s;
-      cb.onchange=()=>{ if(cb.checked){ if(selected.length<4) selected.push(s); else cb.checked=false; } else selected=selected.filter(x=>x!==s); showCurrent(); };
-      lbl.textContent=s; lbl.prepend(cb); sylDiv.append(lbl);
+    // build controls
+    Object.keys(LUM_ASAR).forEach(s => {
+      const cb = document.createElement('input');
+      const lbl = document.createElement('label');
+      cb.type = 'checkbox'; cb.value = s;
+      cb.onchange = () => {
+        if (cb.checked) {
+          if (selected.length < 4) selected.push(s);
+          else cb.checked = false;
+        } else selected = selected.filter(x => x !== s);
+      };
+      lbl.textContent = s;
+      lbl.prepend(cb);
+      sylDiv.append(lbl);
     });
-    Object.keys(GR_MARKERS).forEach(m=>{
-      const rb=document.createElement('input'), lbl=document.createElement('label');
-      rb.type='radio'; rb.name='marker'; rb.value=m;
-      rb.onchange=()=>{ marker=m; showCurrent(); };
-      lbl.textContent=m; lbl.prepend(rb); markDiv.append(lbl);
+    Object.keys(GR_MARKERS).forEach(m => {
+      const rb = document.createElement('input');
+      const lbl = document.createElement('label');
+      rb.type = 'radio'; rb.name = 'marker'; rb.value = m;
+      rb.onchange = () => { marker = m; };
+      lbl.textContent = m;
+      lbl.prepend(rb);
+      markDiv.append(lbl);
     });
 
-    shift.oninput=()=>{ shiftVal.textContent=shift.value; };
+    shift.oninput = () => { shiftVal.textContent = shift.value; };
 
-    function showCurrent(){ out.textContent=`Слоги: ${selected.join(', ')}  Маркер: ${marker}`; }
-
-    function generate(){
-      if(!selected.length){ out.textContent='Выберите слоги!'; return; }
-      const freqs=selected.map(s=>LUM_ASAR[s].freq+parseInt(shift.value));
-      const avg=freqs.reduce((a,b)=>a+b)/freqs.length;
-      const form=selected.join('-')+(marker?'-'+marker:'');
-      const syms=selected.map(s=>LUM_ASAR[s].symbol).join('')+(marker?GR_MARKERS[marker].symbol:'');
-      const desc=selected.map(s=>LUM_ASAR[s].symbol).join(', ')+(marker?`, ${GR_MARKERS[marker].desc}`:'');
+    function generate() {
+      if (!selected.length) { out.textContent = 'Выберите слоги!'; return; }
+      const freqs = selected.map(s => LUM_ASAR[s].freq + parseInt(shift.value));
+      const avg = freqs.reduce((a,b) => a+b) / freqs.length;
+      const form = selected.join('-') + (marker ? '-' + marker : '');
+      const syms = selected.map(s => LUM_ASAR[s].symbol).join('') + (marker ? GR_MARKERS[marker].symbol : '');
+      const desc = selected.map(s => LUM_ASAR[s].symbol).join(', ') + (marker ? `, ${GR_MARKERS[marker].desc}` : '');
       out.textContent = `Формула: ${form}\nЧастоты: [${freqs.join(', ')}]\nСредняя: ${avg.toFixed(1)} Гц\nОписание: ${desc}\nСимволы: ${syms}`;
       playTone(avg);
+      drawShapes();
     }
-    document.getElementById('generate').onclick=generate;
+    document.getElementById('generate').onclick = generate;
 
-    document.getElementById('imgInput').onchange=e=>{ const f=e.target.files[0]; if(f){ document.getElementById('preview').src=URL.createObjectURL(f); } };
+    function playTone(freq) {
+      if (!window.AudioContext) return;
+      const ac = new AudioContext();
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.8);
+      setTimeout(() => { osc.stop(); ac.close(); }, 800);
+    }
 
-    function playTone(freq){ if(!window.AudioContext) return; const ac=new AudioContext(), osc=ac.createOscillator(), gain=ac.createGain();
-      osc.frequency.value=freq; osc.connect(gain); gain.connect(ac.destination);
-      osc.start(); gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime+0.8);
-      setTimeout(()=>{ osc.stop(); ac.close(); },800);
+    function drawShapes() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      selected.forEach((s, i) => {
+        const {figure, color} = LUM_ASAR[s];
+        const off = i * 30;
+        const x = canvas.width/2;
+        const y = canvas.height/2;
+        const r = 40;
+        ctx.strokeStyle = color;
+        ctx.beginPath();
+        switch (figure) {
+          case 'spiral':
+            ctx.arc(x, y, r + off, 0, Math.PI*2);
+            break;
+          case 'line':
+            ctx.moveTo(x-50, y+off);
+            ctx.lineTo(x+50, y+off);
+            break;
+          case 'triangle':
+            ctx.moveTo(x, y-r-off);
+            ctx.lineTo(x-r, y+r-off);
+            ctx.lineTo(x+r, y+r-off);
+            ctx.closePath();
+            break;
+          case 'circle':
+            ctx.arc(x, y, r+off, 0, Math.PI*2);
+            break;
+          case 'circle_filled':
+            ctx.arc(x, y, r+off, 0, Math.PI*2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            break;
+          case 'dot':
+            ctx.arc(x, y-off, 3, 0, Math.PI*2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            break;
+          case 'square':
+            ctx.rect(x-r-off, y-r-off, 2*(r+off), 2*(r+off));
+            break;
+          case 'ellipse':
+            ctx.ellipse(x, y, r+off*1.5, r+off, 0, 0, Math.PI*2);
+            break;
+          case 'flame':
+            ctx.moveTo(x, y-r-off);
+            ctx.lineTo(x-r/2-off, y+off);
+            ctx.lineTo(x, y-r/2-off);
+            ctx.lineTo(x+r/2+off, y+off);
+            ctx.closePath();
+            break;
+          case 'wave_water':
+            for (let dx=-50; dx<=50; dx+=5) {
+              const yy = y + off + 10*Math.sin(dx*0.2);
+              if (dx === -50) ctx.moveTo(x+dx, yy);
+              else ctx.lineTo(x+dx, yy);
+            }
+            break;
+          case 'wind':
+            ctx.arc(x, y, r+off, 0, Math.PI*0.8);
+            break;
+          case 'grid':
+            const size = r + off;
+            const step = size/3;
+            for (let j=-size; j<=size; j+=step) {
+              ctx.moveTo(x+j, y-size);
+              ctx.lineTo(x+j, y+size);
+              ctx.moveTo(x-size, y+j);
+              ctx.lineTo(x+size, y+j);
+            }
+            break;
+          case 'drop':
+            ctx.moveTo(x, y-r-off);
+            ctx.quadraticCurveTo(x-r/2, y, x, y+r-off);
+            ctx.quadraticCurveTo(x+r/2, y, x, y-r-off);
+            break;
+          case 'harmony':
+            ctx.arc(x, y, r+off, 0, Math.PI);
+            ctx.moveTo(x-r-off, y);
+            ctx.lineTo(x+r+off, y);
+            break;
+        }
+        ctx.stroke();
+      });
     }
   </script>
 </body>
