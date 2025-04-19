@@ -1,217 +1,153 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Lum’Asar Web — Полифония Света</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lum’Asar Web GUI v2.3</n  
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f4f9;
-      margin: 20px;
-      padding: 20px;
-    }
-    h1 {
-      color: #4a90e2;
-      text-align: center;
-    }
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
-    }
-    .checkboxes {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: center;
-      margin-bottom: 10px;
-    }
-    .checkboxes label {
-      margin-right: 8px;
-    }
-    #output {
-      margin-top: 10px;
-      background: #fff;
-      padding: 10px;
-      border-radius: 6px;
-      min-height: 80px;
-      white-space: pre-wrap;
-    }
-    canvas {
-      background: #ffffff;
-      border: 1px solid #ccc;
-      margin-top: 10px;
-      display: block;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    .slider-container {
-      text-align: center;
-      margin: 10px 0;
-    }
+    body { font-family: Arial, sans-serif; background: #f4f4f4; color: #333; margin: 0; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { text-align: center; color: #4a90e2; }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; }
+    .controls > div { flex: 1 1 200px; }
+    .syllables, .markers { background: #fff; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    label { display: block; margin-bottom: 5px; cursor: pointer; }
+    button { background: #4caf50; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; }
+    button:hover { background: #43a047; }
+    #output { background: #fff; padding: 10px; border-radius: 8px; min-height: 100px; margin-top: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    canvas { background: #fff; border: 1px solid #ccc; margin-top: 10px; }
+    input[type=file] { margin-bottom: 10px; }
+    img { max-width: 300px; display: block; margin-bottom: 10px; }
   </style>
 </head>
 <body>
-  <h1>Lum’Asar Web — Полифония Света</h1>
   <div class="container">
-    <p>Выбери до 4 слогов:</p>
-    <div class="checkboxes">
-      <label><input type="checkbox" class="sylCheck" value="Lu" />Lu</label>
-      <label><input type="checkbox" class="sylCheck" value="Sa" />Sa</label>
-      <label><input type="checkbox" class="sylCheck" value="Ra" />Ra</label>
-      <label><input type="checkbox" class="sylCheck" value="Va" />Va</label>
-      <label><input type="checkbox" class="sylCheck" value="Mi" />Mi</label>
-      <label><input type="checkbox" class="sylCheck" value="Ke" />Ke</label>
+    <h1>Lum’Asar Web GUI v2.3</h1>
+
+    <input type="file" id="imgInput" accept="image/*">
+    <img id="preview" src="" alt="Preview">
+
+    <div class="controls">
+      <div class="syllables">
+        <h3>Слоги (до 4)</h3>
+        <div id="syllables"></div>
+      </div>
+      <div class="markers">
+        <h3>Грамм. маркер</h3>
+        <div id="markers"></div>
+      </div>
     </div>
-    <div class="slider-container">
-      <label>Сдвиг частоты (± Гц): </label>
-      <input type="range" id="freqShift" min="-20" max="20" value="0" />
-      <span id="shiftValue">0</span>
+
+    <div style="margin-top:10px;">
+      <label>Сдвиг частоты: <span id="shiftVal">0</span> Гц</label>
+      <input type="range" id="shift" min="-20" max="20" value="0">
     </div>
-    <button id="genBtn">Сгенерировать мантру</button>
+
+    <button id="generate">Сгенерировать мантру</button>
+
     <div id="output"></div>
-    <canvas id="myCanvas" width="300" height="300"></canvas>
+    <canvas id="canvas" width="300" height="300"></canvas>
   </div>
 
-<script>
-/** Данные слогов Lum’Asar: freq, shape, desc */
-const lumSyllables = {
-  "Lu": { freq: 432, shape: "spiral", desc: "Свет, начало, рождение" },
-  "Sa": { freq: 528, shape: "wave",   desc: "Любовь, поток, связь" },
-  "Ra": { freq: 639, shape: "triangle", desc: "Сила, освобождение" },
-  "Va": { freq: 741, shape: "harmony", desc: "Гармония, рост" },
-  "Mi": { freq: 852, shape: "circle",  desc: "Истина, вдохновение" },
-  "Ke": { freq: 963, shape: "dot",     desc: "Вечность, тишина" }
-};
+  <script>
+    // Dictionaries
+    const LUM_ASAR = {
+      Lu:{freq:432, figure:'spiral', color:'#FFD700'}, Sa:{freq:528, figure:'line', color:'#FF69B4'},
+      Ra:{freq:639, figure:'triangle', color:'#FF4500'}, Va:{freq:741, figure:'circle', color:'#32CD32'},
+      Mi:{freq:852, figure:'circle_filled', color:'#1E90FF'}, Ke:{freq:963, figure:'dot', color:'#000000'},
+      Nu:{freq:684, figure:'square', color:'#8B4513'}, Mu:{freq:720, figure:'ellipse', color:'#008080'},
+      Fi:{freq:396, figure:'flame', color:'#FF4500'}, Wa:{freq:417, figure:'wave_water', color:'#1E90FF'},
+      Ai:{freq:471, figure:'wind', color:'#A9A9A9'}, Ea:{freq:333, figure:'grid', color:'#8B4513'},
+      Is:{freq:396, figure:'drop', color:'#8B4513'}, Za:{freq:417, figure:'spiral', color:'#FF69B4'},
+      Zi:{freq:528, figure:'wave', color:'#FF4500'}, Pe:{freq:639, figure:'circle', color:'#FFD700'},
+      La:{freq:741, figure:'triangle', color:'#32CD32'}, Le:{freq:852, figure:'circle_filled', color:'#1E90FF'},
+      Us:{freq:963, figure:'line', color:'#00008B'}, Ch:{freq:1080, figure:'harmony', color:'#4B0082'},
+      Ro:{freq:1152, figure:'square', color:'#800080'}
+    };
+    const GR_MARKERS = { ka:{desc:'исцеляющая', symbol:'🔆'}, ta:{desc:'активирующая', symbol:'⚡'}, na:{desc:'медитативная', symbol:'🧘'} };
 
-// При загрузке
-window.addEventListener('DOMContentLoaded', () => {
-  const checkboxes = document.querySelectorAll('.sylCheck');
-  const genBtn = document.getElementById('genBtn');
-  const output = document.getElementById('output');
-  const canvas = document.getElementById('myCanvas');
-  const ctx = canvas.getContext('2d');
+    let selected = [], marker = '';
+    const sylDiv = document.getElementById('syllables'), markDiv = document.getElementById('markers');
+    const shift = document.getElementById('shift'), shiftVal = document.getElementById('shiftVal');
+    const out = document.getElementById('output'), can = document.getElementById('canvas'), ctx = can.getContext('2d');
 
-  const freqShiftInput = document.getElementById('freqShift');
-  const shiftValueSpan = document.getElementById('shiftValue');
-
-  freqShiftInput.addEventListener('input', () => {
-    shiftValueSpan.textContent = freqShiftInput.value;
-  });
-
-  genBtn.addEventListener('click', () => {
-    // Считываем выбранные слоги
-    let selected = [];
-    checkboxes.forEach(ch => {
-      if (ch.checked) selected.push(ch.value);
+    // Build inputs
+    Object.keys(LUM_ASAR).forEach(s=>{
+      let cb = document.createElement('input'), lbl = document.createElement('label');
+      cb.type='checkbox'; cb.value=s; cb.onchange=()=>{
+        if(cb.checked) { if(selected.length<4) selected.push(s); else cb.checked=false; }
+        else selected = selected.filter(x=>x!==s);
+        showCurrent();
+      };
+      lbl.textContent=s; lbl.prepend(cb); sylDiv.append(lbl);
     });
-    if (selected.length === 0) {
-      output.textContent = "Нет выбранных слогов!";
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      return;
+    Object.keys(GR_MARKERS).forEach(m=>{
+      let rb = document.createElement('input'), lbl = document.createElement('label');
+      rb.type='radio'; rb.name='marker'; rb.value=m; rb.onchange=()=>{ marker=m; showCurrent(); };
+      lbl.textContent=m; lbl.prepend(rb); markDiv.append(lbl);
+    });
+
+    shift.oninput = ()=>{ shiftVal.textContent=shift.value; };
+
+    function showCurrent(){ out.textContent=`Слоги: ${selected.join(', ')}  Маркер: ${marker}`; }
+
+    function generate(){
+      if(!selected.length){ out.textContent='Выберите слоги!'; return; }
+      let freqs=selected.map(s=>LUM_ASAR[s].freq+parseInt(shift.value)), avg=freqs.reduce((a,b)=>a+b)/freqs.length;
+      let form=selected.join('-')+(marker?'-'+marker:'');
+      let desc=selected.map(s=>LUM_ASAR[s].figure).join(', ')+(marker? ', '+GR_MARKERS[marker].desc:'');
+      let syms=selected.map(s=>LUM_ASAR[s].symbol).join('')+(marker?GR_MARKERS[marker].symbol:'');
+      out.innerHTML=`<p>Формула: ${form}</p><p>Частоты: [${freqs.join(', ')}]</p>`+
+        `<p>Средняя: ${avg.toFixed(1)} Гц</p><p>Символы: ${syms}</p>`;
+      playTone(avg);
+      draw();
     }
-    if (selected.length > 4) {
-      output.textContent = "Выбрано больше 4 слогов! (ограничение 4)";
-      return;
+
+    document.getElementById('generate').onclick = generate;
+
+    // Image preview
+    document.getElementById('imgInput').onchange = e=>{
+      const file = e.target.files[0]; if(!file) return;
+      const url = URL.createObjectURL(file); document.getElementById('preview').src=url;
+    };
+
+    // Audio
+    function playTone(freq){
+      if(!window.AudioContext) return;
+      const ac=new AudioContext(); const osc=ac.createOscillator(), gain=ac.createGain();
+      osc.frequency.value = freq; osc.connect(gain); gain.connect(ac.destination);
+      osc.start(); gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime+0.8);
+      setTimeout(()=>{ osc.stop(); ac.close(); },800);
     }
 
-    // Сдвиг
-    const shift = parseInt(freqShiftInput.value, 10);
-
-    // Считаем частоты
-    let baseFreqs = [];
-    for (let syl of selected) {
-      let base = lumSyllables[syl].freq;
-      baseFreqs.push(base + shift);
+    // Drawing
+    function draw(){
+      ctx.clearRect(0,0,300,300);
+      ctx.strokeStyle='orange'; ctx.strokeRect(10,10,50,30);
+      let x=150,y=150,r=40;
+      selected.forEach((s,i)=>{
+        let fig=LUM_ASAR[s].figure, col=LUM_ASAR[s].color, off=i*30;
+        ctx.strokeStyle=col;
+        ctx.beginPath();
+        switch(fig){
+          case 'spiral': ctx.ellipse(x,y,r+off,r+off,0,0,Math.PI*2); break;
+          case 'line': ctx.moveTo(x-50,y+off); ctx.lineTo(x+50,y+off); break;
+          case 'triangle': ctx.moveTo(x,y-r-off); ctx.lineTo(x-r,y+r-off); ctx.lineTo(x+r,y+r-off); ctx.closePath(); break;
+          case 'circle': ctx.arc(x,y,r+off,0,Math.PI*2); break;
+          case 'circle_filled': ctx.arc(x,y,r+off,0,Math.PI*2); ctx.fillStyle=col; ctx.fill(); break;
+          case 'dot': ctx.arc(x,y-off,3,0,Math.PI*2); ctx.fillStyle=col; ctx.fill(); break;
+          case 'square': ctx.rect(x-r-off,y-r-off,2*(r+off),2*(r+off)); break;
+          case 'ellipse': ctx.ellipse(x,y,r+off*1.5,r+off,0,0,Math.PI*2); break;
+          case 'flame': ctx.moveTo(x,y-r-off); ctx.lineTo(x-r/2-off,y+off); ctx.lineTo(x,y-r/2-off); ctx.lineTo(x+r/2+off,y+off); ctx.closePath(); break;
+          case 'wave_water': for(let dx=-50,pts=[];dx<=50;dx+=5){ pts.push({x:x+dx,y:y+off+10*Math.sin(dx*0.2)}); } pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); break;
+          case 'wind': ctx.arc(x,y,r+off,0,Math.PI*0.8); break;
+          case 'grid': let size=r+off,step=size/3; for(let j=-size;j<=size;j+=step){ ctx.moveTo(x+j,y-size); ctx.lineTo(x+j,y+size); ctx.moveTo(x-size,y+j); ctx.lineTo(x+size,y+j); } break;
+          case 'drop': ctx.moveTo(x,y-r-off); ctx.quadraticCurveTo(x-r/2,y, x,y+r-off); ctx.quadraticCurveTo(x+r/2,y,x,y-r-off); break;
+          case 'harmony': ctx.arc(x,y,r+off,0,Math.PI); ctx.moveTo(x-r-off,y); ctx.lineTo(x+r+off,y); break;
+        }
+        ctx.stroke();
+      });
     }
-    // Средняя частота
-    let avgFreq = Math.round(baseFreqs.reduce((a,b)=>a+b,0)/baseFreqs.length);
-
-    // Выводим инфу
-    let formula = selected.join("-");
-    output.textContent = 
-      "Поли-мантра: " + formula + "\n" +
-      "Частоты (с учётом сдвига): " + baseFreqs.join(", ") + "\n" +
-      "Средняя частота: " + avgFreq + " Гц\n";
-
-    // Рисуем фигуры
-    drawPattern(ctx, canvas, selected);
-
-    // Проигрываем звук
-    playTone(avgFreq, 0.8); // 0.8 секунд
-  });
-});
-
-/** Функция рисует фигуры в Canvas */
-function drawPattern(ctx, canvas, slogs) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  let x = canvas.width/2;
-  let y = canvas.height/2;
-  let r = 40;
-
-  slogs.forEach((syl, i) => {
-    let fig = lumSyllables[syl].shape;
-    let offset = i * 30;
-    ctx.beginPath();
-    if (fig === "spiral") {
-      // Имитация спирали: просто эллипс
-      ctx.strokeStyle = "blue";
-      ctx.arc(x, y, r+offset, 0, 2*Math.PI);
-    } else if (fig === "wave") {
-      ctx.strokeStyle = "green";
-      ctx.moveTo(x-50, y+offset);
-      ctx.quadraticCurveTo(x, y+offset-20, x+50, y+offset);
-    } else if (fig === "triangle") {
-      ctx.strokeStyle = "magenta";
-      ctx.moveTo(x, y-r-offset);
-      ctx.lineTo(x-r, y+r-offset);
-      ctx.lineTo(x+r, y+r-offset);
-      ctx.closePath();
-    } else if (fig === "harmony") {
-      ctx.strokeStyle = "purple";
-      ctx.arc(x, y, r+offset, 0, 2*Math.PI);
-    } else if (fig === "circle") {
-      ctx.strokeStyle = "red";
-      ctx.arc(x, y, r+offset, 0, 2*Math.PI);
-    } else if (fig === "dot") {
-      ctx.fillStyle = "black";
-      ctx.arc(x, y-offset, 3, 0, 2*Math.PI);
-      ctx.fill();
-    }
-    ctx.stroke();
-  });
-}
-
-/** Генерация звука через Web Audio API */
-function playTone(freq, durationSec) {
-  // Создаём аудиоконтекст
-  const AudioContext = window.AudioContext || window.webkitAudioContext;
-  const audioCtx = new AudioContext();
-
-  // Создаём генератор (осциллятор)
-  const osc = audioCtx.createOscillator();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-
-  // Создаём усилитель (GainNode) чтобы плавно завершать
-  const gainNode = audioCtx.createGain();
-  gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
-
-  // Подключаем
-  osc.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-
-  // Запускаем
-  osc.start();
-
-  // Останавливаем через durationSec секунд (плавный спад)
-  setTimeout(() => {
-    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-    setTimeout(() => {
-      osc.stop();
-      audioCtx.close();
-    }, 500);
-  }, durationSec * 1000);
-}
-</script>
+  </script>
 </body>
 </html>
